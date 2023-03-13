@@ -285,12 +285,36 @@ pub struct PodmanArgs {
     /// Can be specified multiple times
     #[arg(long, value_name = "HOST:IP")]
     add_host: Vec<String>,
+
+    /// Override the architecture of the image to be pulled
+    ///
+    /// Defaults to hosts architecture
+    #[arg(long)]
+    arch: Option<String>,
+
+    /// Attach to STDIN, STDOUT, or STDERR
+    #[arg(short, long, value_name = "STDIN | STDOUT | STDERR")]
+    attach: Vec<String>,
+
+    /// Path of the authentication file
+    ///
+    /// Default is `${XDG_RUNTIME_DIR}/containers/auth.json`
+    #[arg(long, value_name = "PATH")]
+    authfile: Option<PathBuf>,
+
+    /// Block IO relative weight, between 10 and 1000
+    #[arg(long, value_name = "WEIGHT")]
+    blkio_weight: Option<u16>,
 }
 
 impl PodmanArgs {
     /// Whether all fields are empty
     fn is_empty(&self) -> bool {
         self.add_host.is_empty()
+            && self.arch.is_none()
+            && self.attach.is_empty()
+            && self.authfile.is_none()
+            && self.blkio_weight.is_none()
     }
 }
 
@@ -299,7 +323,26 @@ impl Display for PodmanArgs {
         if self.is_empty() {
             Ok(())
         } else {
-            let args_iter = self.add_host.iter().flat_map(|host| ["--add-host", host]);
+            let add_host = self.add_host.iter().map(|host| ["--add-host", host]);
+
+            let arch = self.arch.as_ref().map(|arch| ["--arch", arch]);
+
+            let attach = self.attach.iter().map(|attach| ["--attach", attach]);
+
+            let authfile = self.authfile.as_ref().map(|file| file.to_string_lossy());
+            let authfile = authfile.as_ref().map(|file| ["--authfile", file]);
+
+            let blkio_weight = self.blkio_weight.map(|weight| weight.to_string());
+            let blkio_weight = blkio_weight
+                .as_ref()
+                .map(|weight| ["--blkio-weight", weight]);
+
+            let args_iter = add_host
+                .chain(arch)
+                .chain(attach)
+                .chain(authfile)
+                .chain(blkio_weight)
+                .flatten();
 
             writeln!(f, "PodmanArgs={}", shlex::join(args_iter))
         }
