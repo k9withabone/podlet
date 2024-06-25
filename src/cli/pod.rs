@@ -105,6 +105,7 @@ pub struct Create {
     ///
     /// This will be used as the name of the generated file when used with
     /// the --file option without a filename.
+    #[arg(long, value_name = "NAME")]
     name: String,
 }
 
